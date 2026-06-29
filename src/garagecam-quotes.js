@@ -480,9 +480,9 @@
     const container = document.createElement('div');
     container.innerHTML = `
       <button type="button" class="gcq-button">Get Instant Video Quote</button>
-      <div class="gcq-backdrop gcq-hidden" role="dialog" aria-modal="true" aria-label="${config.brandName}">
+      <div class="gcq-backdrop gcq-hidden" role="dialog" aria-modal="true" aria-label="GarageCam Quotes">
         <div class="gcq-modal">
-          <h2>${config.brandName}</h2>
+          <h2></h2>
           <p class="gcq-subtitle">Send a 15-30 second video and get a fast garage door diagnostic quote.</p>
           <form novalidate>
             <label class="gcq-field">
@@ -517,6 +517,12 @@
         </div>
       </div>
     `;
+
+    const backdrop = container.querySelector('.gcq-backdrop');
+    const title = container.querySelector('h2');
+
+    backdrop.setAttribute('aria-label', config.brandName);
+    title.textContent = config.brandName;
 
     return container;
   }
