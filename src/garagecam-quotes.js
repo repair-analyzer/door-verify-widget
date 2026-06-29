@@ -559,7 +559,7 @@
 
     function openModal() {
       backdrop.classList.remove('gcq-hidden');
-      setStatus(statusNode, navigator.onLine ? '' : 'Weak or offline connection detected. Upload retry will start automatically when service returns.');
+      setStatus(statusNode, navigator.onLine ? '' : 'Weak or offline connection detected. Upload retry will start automatically when connectivity returns.');
     }
 
     function closeModal() {
@@ -606,7 +606,7 @@
           onProgress: function onProgress(percent, attempt) {
             progressBar.style.width = `${percent}%`;
             const statusMessage = attempt > 1
-              ? `Retrying upload on mobile connection (attempt ${attempt})... ${percent}%`
+              ? `Retrying upload (attempt ${attempt})... ${percent}%`
               : `Uploading secure video... ${percent}%`;
             setStatus(statusNode, statusMessage);
           }
