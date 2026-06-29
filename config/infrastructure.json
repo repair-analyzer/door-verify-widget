@@ -1,0 +1,123 @@
+{
+  "service": "garagecam-quotes",
+  "repository_mode": "standalone",
+  "tenancy": {
+    "model": "shared_database_shared_schema",
+    "tenant_key": "contractor_id",
+    "data_partitioning": "Every lead, upload session, and alert references contractor_id for row-level isolation."
+  },
+  "database": {
+    "engine": "PostgreSQL 15",
+    "tables": {
+      "contractors": {
+        "primary_key": "contractor_id",
+        "columns": {
+          "contractor_id": "uuid not null",
+          "company_name": "text not null",
+          "notification_phone_e164": "text not null",
+          "allowed_origins": "jsonb not null",
+          "twilio_messaging_service_sid": "text not null",
+          "storage_bucket": "text not null",
+          "created_at": "timestamptz not null default now()"
+        }
+      },
+      "leads": {
+        "primary_key": "lead_id",
+        "indexes": [
+          "contractor_id, created_at desc",
+          "expires_at",
+          "customer_phone_e164"
+        ],
+        "columns": {
+          "lead_id": "uuid not null",
+          "contractor_id": "uuid not null references contractors(contractor_id)",
+          "customer_name": "text not null",
+          "customer_phone_e164": "text not null",
+          "zip_code": "text not null",
+          "video_object_key": "text not null",
+          "secure_video_url": "text null",
+          "consent_granted": "boolean not null",
+          "consent_timestamp": "timestamptz not null",
+          "submission_timestamp": "timestamptz not null",
+          "expires_at": "timestamptz not null",
+          "upload_status": "text not null",
+          "created_at": "timestamptz not null default now()"
+        }
+      },
+      "lead_audit_events": {
+        "primary_key": "audit_event_id",
+        "columns": {
+          "audit_event_id": "uuid not null",
+          "lead_id": "uuid not null references leads(lead_id)",
+          "contractor_id": "uuid not null",
+          "event_type": "text not null",
+          "event_payload": "jsonb not null",
+          "recorded_at": "timestamptz not null default now()"
+        }
+      }
+    }
+  },
+  "cors": {
+    "mode": "allowlist",
+    "allow_origins_from": "contractors.allowed_origins",
+    "allow_methods": [
+      "POST",
+      "PUT",
+      "OPTIONS"
+    ],
+    "allow_headers": [
+      "Content-Type",
+      "X-Contractor-Id",
+      "X-Widget-Version"
+    ],
+    "expose_headers": [
+      "X-Request-Id"
+    ],
+    "max_age_seconds": 600,
+    "vary": [
+      "Origin"
+    ]
+  },
+  "api_router": [
+    {
+      "step": 1,
+      "name": "Receive Payload",
+      "endpoint": "POST /api/widget/leads/presign",
+      "actions": [
+        "Validate contractor_id, customer_name, customer_phone_e164, zip_code, consent_granted, consent_timestamp, and video metadata.",
+        "Reject requests when consent_granted is false or consent_timestamp is missing.",
+        "Persist an audit event with the immutable ISO consent timestamp before upload starts."
+      ]
+    },
+    {
+      "step": 2,
+      "name": "Generate 24h Signed Link",
+      "endpoint": "internal storage signer",
+      "actions": [
+        "Create a private object key under contractor_id/lead_id/video.mp4.",
+        "Issue a presigned PUT upload URL for the browser.",
+        "After finalize, generate a signed GET URL that expires exactly 24 hours after issuance."
+      ]
+    },
+    {
+      "step": 3,
+      "name": "Construct Twilio MMS string with proper STOP opting-out instructions",
+      "endpoint": "internal notifier",
+      "actions": [
+        "Build a concise diagnostic text containing customer name, phone, zip, and the signed 24-hour video link.",
+        "Append 'Reply STOP to opt out.' to align with messaging compliance requirements.",
+        "Use the tenant's Messaging Service SID so each contractor maps to the correct sender configuration."
+      ]
+    },
+    {
+      "step": 4,
+      "name": "Execute Twilio API request",
+      "endpoint": "POST https://api.twilio.com/2010-04-01/Accounts/{AccountSid}/Messages.json",
+      "actions": [
+        "Send the MMS/SMS notification to contractors.notification_phone_e164.",
+        "Include the signed video link in the body for fast native thread rendering.",
+        "Persist delivery status callbacks back into lead_audit_events."
+      ]
+    }
+  ]
+}
