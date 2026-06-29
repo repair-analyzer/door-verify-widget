@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Standalone multi-tenant embeddable widget for secure garage door quote intake.",
+  "license": "MIT",
   "type": "commonjs",
   "scripts": {
     "build": "mkdir -p dist && cp src/garagecam-quotes.js dist/garagecam-quotes.js && cp config/infrastructure.json dist/infrastructure.json",
